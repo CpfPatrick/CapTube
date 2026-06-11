@@ -16,16 +16,23 @@ function validateSettings(settings) {
 }
 
 
-chrome.storage.local.get(['settings'], (result) => {
-  console.log('loaded', result.settings)
-  if (result.settings) {
-    const mergedSettings = Object.assign(gSettings, result.settings);
-    if (validateSettings(mergedSettings)) {
-      gSettings = mergedSettings;
-      console.log('mergedSettings', gSettings)
+// Resolves once settings are loaded from local storage. The MV3 service worker
+// can be terminated and restarted at any time, re-running this top-level code;
+// connection handlers await this before dispatching settings so a connection
+// arriving on a cold start never receives stale defaults.
+const settingsReady = new Promise(resolve => {
+  chrome.storage.local.get(['settings'], (result) => {
+    console.log('loaded', result.settings)
+    if (result.settings) {
+      const mergedSettings = Object.assign(gSettings, result.settings);
+      if (validateSettings(mergedSettings)) {
+        gSettings = mergedSettings;
+        console.log('mergedSettings', gSettings)
+      }
     }
-  }
-  saveSettings();  // first-time initialization or upgrade
+    saveSettings();  // first-time initialization or upgrade
+    resolve();
+  });
 });
 
 
@@ -55,7 +62,7 @@ function changeIconForTab(tabId, iconType_) {
       '32': 'icon32.png',
     }
   };
-  chrome.browserAction.setIcon({
+  chrome.action.setIcon({
     tabId: tabId,
     path: ICON_PATHS_MAPPING[iconType],
   });
@@ -84,7 +91,7 @@ function dispatchSettings() {
 
 
 // connected from target website (our injected agent)
-function handleExternalConnection(port) {
+async function handleExternalConnection(port) {
   const tabId = port.sender && port.sender.tab && port.sender.tab.id;
   if (!tabId) return;
 
@@ -92,6 +99,7 @@ function handleExternalConnection(port) {
   changeIconForTab(tabId, 'half');
   console.log(`Connected ${tabId} (tab)`);
 
+  await settingsReady;
   port.postMessage({
     type: 'DISPATCH_SETTINGS',
     settings: gSettings,
@@ -167,13 +175,14 @@ function handleExternalConnection(port) {
 
 
 // connected from our pop-up page
-function handleInternalConnection(port) {
+async function handleInternalConnection(port) {
   const portName = port.name;
   const portId = Math.random().toString(36).substring(2);
   gIntPorts[portId] = port;
   console.log(`Connected ${portName} (${portId}) (internal)`);
 
   if (portName === 'popup' || portName == 'options') {
+    await settingsReady;
     port.postMessage({
       type: 'DISPATCH_SETTINGS',
       settings: gSettings

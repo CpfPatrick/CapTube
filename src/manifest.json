@@ -1,22 +1,19 @@
 {
   "name": "CapTube (Dual Captions for YouTube)",
-  "manifest_version": 2,
+  "manifest_version": 3,
   "author": "Dan Chen",
 
   "permissions": [
-    "storage",
+    "storage"
+  ],
+
+  "host_permissions": [
     "https://www.youtube.com/*",
     "https://tmt.tencentcloudapi.com/*",
     "https://api.deepl.com/*"
   ],
 
-  "background": {
-    "scripts": [
-      "background.min.js"
-    ]
-  },
-
-  "browser_action": {
+  "action": {
     "default_icon": "icon-gray.png",
     "default_popup": "popup.html"
   },
@@ -41,12 +38,13 @@
   },
 
   "web_accessible_resources": [
-    "captube.min.js",
-    "icon32.png"
+    {
+      "resources": ["captube.min.js", "icon32.png"],
+      "matches": ["https://www.youtube.com/*"]
+    }
   ],
 
   "options_ui": {
-    "chrome_style": true,
     "page": "options.html"
   }
 }

@@ -44,7 +44,12 @@ const configs = browsers.map(browser => {
             short_name: process.env.npm_package_name,
             description: process.env.npm_package_description,
             version: process.env.npm_package_version,
-            ...JSON.parse(content.toString('utf-8'))
+            ...JSON.parse(content.toString('utf-8')),
+            // MV3 background differs per browser: Chrome requires a service
+            // worker, while Firefox MV3 still uses an event-page script list.
+            background: browser === 'chrome'
+              ? { service_worker: 'background.min.js' }
+              : { scripts: ['background.min.js'] },
           }, null, '\t')),
         },
         {
